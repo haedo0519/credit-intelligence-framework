@@ -91,10 +91,10 @@ DECISION_PATTERNS = [
 
 NUM_RE = re.compile(
     r"(?<![\w.])([-−△]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[-−△]?\d+(?:\.\d+)?)\s*"
-    r"(억원|백만원|천원|원|%p|％p|%|％|배|회|bp|개년|년|개월|개|건|월|분기|위)?"
+    r"(조원|억원|백만원|천원|원|%p|％p|%|％|배|회|bp|개년|년|개월|개|건|월|분기|위)?"
 )
 IGNORED_UNITS = {"개년", "년", "개월", "개", "건", "월", "분기", "위"}  # 연도·개수는 검증 대상 아님
-WON_SCALE = {"억원": 1e8, "백만원": 1e6, "천원": 1e3, "원": 1.0}
+WON_SCALE = {"조원": 1e12, "억원": 1e8, "백만원": 1e6, "천원": 1e3, "원": 1.0}
 UNIT_GROUP = {"%": "%", "％": "%", "%p": "%", "％p": "%", "배": "배", "회": "회", "bp": "bp"}
 
 
@@ -151,7 +151,7 @@ def _matches(num: float, dec: int, unit: str, items: list[EvidenceItem]) -> bool
         return any(abs(num - c) <= tol + 1e-9 * c for c in _candidates(items, UNIT_GROUP[unit]))
     # 단위 없는 숫자: 모든 근거와 원 단위 금액의 백만원·억원 환산값까지 허용
     cands = _candidates(items, None)
-    cands += [c / s for c in _candidates([i for i in items if i.unit == "원"], "원") for s in (1e6, 1e8)]
+    cands += [c / s for c in _candidates([i for i in items if i.unit == "원"], "원") for s in (1e6, 1e8, 1e12)]
     return any(abs(num - c) <= tol + 1e-9 * c for c in cands)
 
 

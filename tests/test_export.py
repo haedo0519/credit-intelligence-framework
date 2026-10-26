@@ -33,6 +33,17 @@ def test_charts_are_png_without_font_warnings(report_inputs, code):
         assert base64.b64decode(uri.split(",", 1)[1])[:8] == b"\x89PNG\r\n\x1a\n"
 
 
+def test_money_scale_switches_to_jo_won(report_inputs):
+    r = generate_report(**report_inputs("DEMO01"))
+    assert charts.money_scale(r) == ("억원", 1e8, 1)          # 시연 기업: 수백억원 규모
+    big = r.model_copy(deep=True)
+    big.trend[0].cells = {y: 175e12 for y in big.trend[0].cells}  # 175조원
+    assert charts.money_scale(big) == ("조원", 1e12, 2)
+    html = render_html(big)
+    assert "175.00" in html and "단위: 조원" in html and "그림 1. 매출액(조원)" in html
+    assert "{{" not in html and "}}" not in html  # 템플릿 변수가 글자로 남지 않아야 함
+
+
 def test_charts_skip_when_single_year(report_inputs):
     inp = report_inputs("DEMO01")
     r = generate_report(**inp).model_copy(deep=True)

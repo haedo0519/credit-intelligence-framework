@@ -1,0 +1,58 @@
+version: "1.0.0"
+# OpenDART 단일회사 전체 재무제표(fnlttSinglAcntAll) → CIF 표준 계정.
+# 표준계정코드(account_id, XBRL)로 먼저 찾고, 없으면 계정명(account_nm)으로 찾는다.
+# sj: 찾을 재무제표 (BS 재무상태표, IS 손익계산서, CIS 포괄손익계산서, CF 현금흐름표) — 앞에 있는 것부터
+accounts:
+  TOTAL_ASSETS:
+    sj: [BS]
+    ids: [ifrs-full_Assets]
+    names: [자산총계]
+  CURRENT_ASSETS:
+    sj: [BS]
+    ids: [ifrs-full_CurrentAssets]
+    names: [유동자산]
+  INVENTORIES:
+    sj: [BS]
+    ids: [ifrs-full_Inventories]
+    names: [재고자산]
+  TOTAL_LIABILITIES:
+    sj: [BS]
+    ids: [ifrs-full_Liabilities]
+    names: [부채총계]
+  CURRENT_LIABILITIES:
+    sj: [BS]
+    ids: [ifrs-full_CurrentLiabilities]
+    names: [유동부채]
+  TOTAL_EQUITY:
+    sj: [BS]
+    ids: [ifrs-full_Equity]  # 비지배지분 포함 자본총계 (자산 = 부채 + 자본과 일치)
+    names: [자본총계]
+  PAID_IN_CAPITAL:
+    sj: [BS]
+    ids: [ifrs-full_IssuedCapital]
+    names: [자본금]
+  REVENUE:
+    sj: [IS, CIS]
+    ids: [ifrs-full_Revenue, ifrs-full_RevenueFromContractsWithCustomers]
+    names: [매출액, 수익(매출액), 영업수익, 매출]
+  OPERATING_INCOME:
+    sj: [IS, CIS]
+    ids: [dart_OperatingIncomeLoss]
+    names: [영업이익, 영업이익(손실), 영업손익]
+  NET_INCOME:
+    sj: [IS, CIS]
+    ids: [ifrs-full_ProfitLoss]  # 비지배지분 포함 당기순이익
+    names: [당기순이익, 당기순이익(손실), 당기순손익, 연결당기순이익, 연결당기순이익(손실)]  # 현대차 2022: 표준코드 없이 '연결당기순이익'
+  INTEREST_EXPENSE:
+    sj: [IS, CIS]
+    ids: [ifrs-full_InterestExpense]
+    names: [이자비용]  # 금융비용 전체는 쓰지 않음. 본문에 없으면 이자보상배율은 '자료 없음'
+  OPERATING_CASH_FLOW:
+    sj: [CF]
+    ids: [ifrs-full_CashFlowsFromUsedInOperatingActivities]
+    names: [영업활동현금흐름, 영업활동으로인한현금흐름, 영업활동으로부터의현금흐름]
+# 차입금은 여러 계정의 합: 재무상태표에서 이름이 아래 패턴으로 끝나는 계정을 더한다 (리스부채·할인차금 제외)
+borrowings:
+  sj: [BS]
+  name_pattern: "(차입금|사채|유동성장기부채)$"  # 유동성장기부채: 1년 내 만기 장기차입금·사채 (현대차 2024년 26.7조원)
+  exclude_pattern: "(리스|할인|할증|전환권|상환)"

@@ -88,6 +88,16 @@ def test_missing_borrowings_only_matters_for_rate(cfg):
     assert got["S"].status == "OK"  # 금리 변화가 없으면 차입금 불필요
 
 
+def test_missing_interest_only_blocks_rate_scenarios(cfg):
+    """실제 DART 자료(현대자동차)에서 발견: 이자비용이 없다고 매출 시나리오까지 막으면 안 된다."""
+    v = {2025: {k: x for k, x in V[2025].items() if k != "INTEREST_EXPENSE"}}
+    got = _run(cfg, values=v, S=sc(rev=-20), R=sc(bp=100))
+    assert got["S"].status == "OK" and got["S"].operating_income == pytest.approx(80)
+    assert got["S"].interest_expense is None and got["S"].interest_coverage_status == "NOT_COMPUTED"
+    assert got["S"].pretax_income_change == pytest.approx(-20)
+    assert got["R"].status == "MISSING_INPUT" and "INTEREST_EXPENSE" in got["R"].notes[0]
+
+
 def test_missing_core_input(cfg):
     v = {2025: {k: x for k, x in V[2025].items() if k != "REVENUE"}}
     assert all(r.status == "MISSING_INPUT" and not r.delta_vs_base for r in run_stress(v, cfg))

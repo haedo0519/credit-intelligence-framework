@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from cif.report.charts import METRIC_STATUS, all_charts, find_font
+from cif.report.charts import METRIC_STATUS, all_charts, find_font, money_scale
 from cif.report.schema import CreditReport
 
 TEMPLATES = Path(__file__).with_name("templates")
@@ -22,8 +22,8 @@ class RenderError(Exception):
     pass
 
 
-def _eok(v) -> str:
-    return "-" if v is None else f"{v / 1e8:,.1f}"
+def _money(v, div: float, dec: int) -> str:
+    return "-" if v is None else f"{v / div:,.{dec}f}"
 
 
 def _ratio(v) -> str:
@@ -31,7 +31,7 @@ def _ratio(v) -> str:
 
 
 _env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html"]))
-_env.filters.update(eok=_eok, ratio=_ratio, mstatus=lambda s: METRIC_STATUS.get(s, s))
+_env.filters.update(money=_money, ratio=_ratio, mstatus=lambda s: METRIC_STATUS.get(s, s))
 
 
 def _bold(font: Path) -> Path:
@@ -47,7 +47,9 @@ def render_html(report: CreditReport, font_path: Path | None = None, issued: str
     tables = {"trend": report.trend, "ratios": report.ratios}
     kpis = [(label, next((r for r in tables[t] if r.code == code), None), "won" if t == "trend" else "ratio")
             for label, t, code in KPIS]
+    money_unit, div, dec = money_scale(report)
     return _env.get_template("report.html").render(
+        money_unit=money_unit, div=div, dec=dec,
         r=report, p=report.provenance, years=report.overview.fiscal_years, status_label=STATUS_LABEL,
         scope_label=SCOPE_LABEL, charts=all_charts(report), kpis=kpis, issued=issued,
         high_count=sum(e.severity == "HIGH" for e in report.risk_signals),

@@ -21,7 +21,10 @@ FONT_CANDIDATES = [
     Path("/Library/Fonts/NanumGothic.ttf"),
 ]
 NAVY, SKY, RED, GRAY, AMBER = "#1f3a5f", "#5b8db8", "#c0392b", "#9aa5b1", "#d9822b"
-EOK = 1e8  # 억원
+def money_scale(report: CreditReport) -> tuple[str, float, int]:
+    """표·차트 금액 단위: 금액이 10조원 이상이면 조원, 아니면 억원. (단위명, 나눌 값, 소수 자릿수)"""
+    biggest = max((abs(v) for row in report.trend for v in row.cells.values() if v is not None), default=0)
+    return ("조원", 1e12, 2) if biggest >= 1e13 else ("억원", 1e8, 1)
 # 비율 계산 상태의 짧은 한글 표기 (차트·표 공통)
 METRIC_STATUS = {"NOT_MEANINGFUL": "해석불가", "DIV_BY_ZERO": "분모 0", "MISSING_INPUT": "자료 없음",
                  "NO_INTEREST_EXPENSE": "이자 없음"}
@@ -76,7 +79,7 @@ def _korean(fn):
 
 @_korean
 def revenue_margin(report: CreditReport) -> str | None:
-    """매출액(막대, 억원) + 영업이익률(선, %)."""
+    """매출액(막대, 금액 단위) + 영업이익률(선, %)."""
     years = report.overview.fiscal_years
     rev, margin = _row(report.trend, "REVENUE"), _row(report.ratios, "OPERATING_MARGIN")
     if rev is None or len(years) < 2:
@@ -84,12 +87,13 @@ def revenue_margin(report: CreditReport) -> str | None:
     fig = _figure(6.4, 2.8)
     ax = fig.add_subplot()
     labels = [str(y) for y in years]
-    vals = [(rev.cells.get(y) or 0) / EOK for y in years]
-    bars = ax.bar(labels, vals, color=SKY, width=0.55, label="매출액(억원)")
+    unit, div, dec = money_scale(report)
+    vals = [(rev.cells.get(y) or 0) / div for y in years]
+    bars = ax.bar(labels, vals, color=SKY, width=0.55, label=f"매출액({unit})")
     # 막대 값은 막대 안쪽에 써서 위쪽의 이익률 표기와 겹치지 않게 한다
-    ax.bar_label(bars, labels=[f"{v:,.0f}" for v in vals], fontsize=7, label_type="center", color="white")
+    ax.bar_label(bars, labels=[f"{v:,.{dec}f}" for v in vals], fontsize=7, label_type="center", color="white")
     _style(ax, "매출액과 영업이익률")
-    ax.set_ylabel("억원", fontsize=8)
+    ax.set_ylabel(unit, fontsize=8)
     if margin is not None:
         ax2 = ax.twinx()
         m = [margin.cells.get(y) for y in years]
@@ -109,7 +113,8 @@ def revenue_margin(report: CreditReport) -> str | None:
 
 @_korean
 def earnings_cash(report: CreditReport) -> str | None:
-    """영업이익·당기순이익·영업활동현금흐름 (억원, 묶음 막대)."""
+    """영업이익·당기순이익·영업활동현금흐름 (금액 단위, 묶음 막대)."""
+    unit, div, dec = money_scale(report)
     years = report.overview.fiscal_years
     series = [(c, lbl, col) for c, lbl, col in (("OPERATING_INCOME", "영업이익", NAVY), ("NET_INCOME", "당기순이익", SKY),
                                                 ("OPERATING_CASH_FLOW", "영업활동현금흐름", AMBER))
@@ -122,13 +127,13 @@ def earnings_cash(report: CreditReport) -> str | None:
     for i, (code, label, color) in enumerate(series):
         row = _row(report.trend, code)
         xs = [j + (i - (len(series) - 1) / 2) * width for j in range(len(years))]
-        vals = [(row.cells.get(y) or 0) / EOK for y in years]
+        vals = [(row.cells.get(y) or 0) / div for y in years]
         bars = ax.bar(xs, vals, width=width * 0.95, color=color, label=label)
         ax.bar_label(bars, labels=[f"{v:,.1f}" for v in vals], fontsize=6, padding=2)
     ax.set_xticks(range(len(years)), [str(y) for y in years])
     ax.margins(y=0.15)
     ax.axhline(0, color="#52606d", linewidth=0.8)
-    _style(ax, "이익과 현금흐름 (억원)")
+    _style(ax, f"이익과 현금흐름 ({unit})")
     ax.legend(fontsize=7, frameon=False, ncols=3, loc="upper right")
     return _uri(fig)
 
@@ -165,18 +170,19 @@ def key_ratios(report: CreditReport) -> str | None:
 
 @_korean
 def stress_impact(report: CreditReport) -> str | None:
-    """시나리오별 영업이익(억원, 가로 막대)과 이자보상배율 표기."""
+    """시나리오별 영업이익(금액 단위, 가로 막대)과 이자보상배율 표기."""
+    unit, div, dec = money_scale(report)
     rows = [s for s in report.stress if s.status == "OK" and s.operating_income is not None]
     if not rows:
         return None
     fig = _figure(6.4, 0.45 * len(rows) + 0.8)
     ax = fig.add_subplot()
     names = [textwrap.fill(s.description, 16) for s in rows][::-1]  # 긴 이름이 그림 폭을 줄이지 않게 줄바꿈
-    vals = [s.operating_income / EOK for s in rows][::-1]
+    vals = [s.operating_income / div for s in rows][::-1]
     colors = [GRAY if s.scenario_id == "BASE" else (RED if s.operating_income < 0 else SKY) for s in rows][::-1]
     bars = ax.barh(names, vals, color=colors, height=0.6)
     icr = [s.interest_coverage for s in rows][::-1]
-    ax.bar_label(bars, labels=[f"{v:,.1f}억원 · ICR {c:.2f}배" if c is not None else f"{v:,.1f}억원"
+    ax.bar_label(bars, labels=[f"{v:,.{dec}f}{unit} · ICR {c:.2f}배" if c is not None else f"{v:,.{dec}f}{unit}"
                                for v, c in zip(vals, icr)], fontsize=7, padding=3)
     ax.axvline(0, color="#52606d", linewidth=0.8)
     _style(ax, "스트레스 시나리오별 영업이익")

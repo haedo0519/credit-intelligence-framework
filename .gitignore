@@ -5,4 +5,7 @@ __pycache__/
 .env
 data/*.db
 data/raw/
+# 실제 기업 자료·DART 캐시는 공개 저장소에 올리지 않는다
+data/real/
+data/dart_cache/
 outputs/

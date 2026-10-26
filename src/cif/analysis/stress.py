@@ -39,7 +39,9 @@ def _apply(sid: str, sc: Scenario, a: StressAssumptions, year: int, v: dict[str,
     inputs = {k: v.get(k) for k in ("REVENUE", "OPERATING_INCOME", "INTEREST_EXPENSE", "BORROWINGS")}
     res = ScenarioResult(scenario_id=sid, description=sc.description, fiscal_year=year, status="OK",
                          scenario=sc, assumptions=a, inputs=inputs)
-    needed = ["REVENUE", "OPERATING_INCOME", "INTEREST_EXPENSE"] + (["BORROWINGS"] if sc.rate_change_bp else [])
+    # 이자비용은 금리 시나리오에만 필수. 없으면 매출·이익률 시나리오는 계산하고 이자보상배율만 비운다
+    # (DART 본문에는 이자비용 대신 '금융비용'만 있는 경우가 많음)
+    needed = ["REVENUE", "OPERATING_INCOME"] + (["INTEREST_EXPENSE", "BORROWINGS"] if sc.rate_change_bp else [])
     missing = [k for k in needed if inputs[k] is None]
     if missing:
         res.status = "MISSING_INPUT"
@@ -62,6 +64,12 @@ def _apply(sid: str, sc: Scenario, a: StressAssumptions, year: int, v: dict[str,
         if sc.revenue_change_pct or sc.op_margin_change_pctp:
             res.notes.append("기준 매출이 0 이하라 매출·이익률 변화를 적용하지 않음")
 
+    res.revenue, res.operating_income = rev_s, oi_s
+    res.operating_margin_pct = oi_s / rev_s * 100 if rev_s > 0 else None
+    if interest is None:
+        res.notes.append("이자비용 자료가 없어 이자비용·이자보상배율은 계산하지 않음")
+        return res  # interest_coverage_status는 NOT_COMPUTED 유지
+
     increment = 0.0
     if sc.rate_change_bp:
         increment = inputs["BORROWINGS"] * a.floating_rate_share * sc.rate_change_bp / 10_000 * a.months_applied / 12
@@ -69,9 +77,7 @@ def _apply(sid: str, sc: Scenario, a: StressAssumptions, year: int, v: dict[str,
     if interest_s < 0:
         res.notes.append(f"금리 하락분({increment:,.0f}원)이 기존 이자비용보다 커 이자비용을 0으로 제한")
         interest_s = 0.0
-
-    res.revenue, res.operating_income, res.interest_expense = rev_s, oi_s, interest_s
-    res.operating_margin_pct = oi_s / rev_s * 100 if rev_s > 0 else None
+    res.interest_expense = interest_s
     if interest_s > 0:
         res.interest_coverage, res.interest_coverage_status = oi_s / interest_s, "OK"
     else:
@@ -100,5 +106,7 @@ def run_stress(values: dict[int, dict[str, int]], cfg: StressConfig, fiscal_year
             f: (None if getattr(r, f) is None or getattr(base, f) is None else getattr(r, f) - getattr(base, f))
             for f in DELTA_FIELDS
         }
-        r.pretax_income_change = (r.operating_income - base.operating_income) - (r.interest_expense - base.interest_expense)
+        # 이자비용이 없으면 금리 시나리오는 이미 MISSING_INPUT이므로 여기서는 이자 변화가 0
+        d_interest = 0.0 if r.interest_expense is None else r.interest_expense - base.interest_expense
+        r.pretax_income_change = (r.operating_income - base.operating_income) - d_interest
     return results

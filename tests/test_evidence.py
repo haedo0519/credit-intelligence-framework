@@ -74,6 +74,16 @@ def test_wrong_amounts_rejected(pack, text):
     assert _status(pack, text, REV24, REV25) == "UNVERIFIED_NUMBER"
 
 
+def test_jo_won_unit():
+    """대기업 금액(조원) 표기 검증 (실제 기업 현대자동차 보고서에서 필요해짐)."""
+    cfg = load_config()
+    big = {2025: {"REVENUE": 175_231_153_000_000}}
+    p = build_evidence(big, [], [], [], [], cfg.risk, {"REVENUE": "매출액"})
+    assert verify_claim(Claim(text="매출액은 175.23조원입니다.", evidence_ids=["account:REVENUE:2025"]), p).status == "VERIFIED"
+    assert verify_claim(Claim(text="매출액은 175.3조원입니다.", evidence_ids=["account:REVENUE:2025"]),
+                        p).status == "UNVERIFIED_NUMBER"
+
+
 def test_ratio_values_and_differences(pack):
     ids = ("ratio:CURRENT_RATIO:2024", "ratio:CURRENT_RATIO:2025")
     assert _status(pack, "유동비율은 200.0%에서 180.0%로 20.0%p 하락했습니다.", *ids) == "VERIFIED"

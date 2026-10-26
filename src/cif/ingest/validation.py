@@ -105,11 +105,13 @@ def validate(df: pd.DataFrame, cfg: Config) -> ValidationResult:
     for y, v in sorted(by_year.items()):
         for code in cfg.accounts.required:
             if code not in v:
-                issues.append(_issue("WARNING", "MISSING_REQUIRED", f"{y}년 필수 계정 누락: {code}",
+                label = cfg.accounts.accounts[code][0]
+                issues.append(_issue("WARNING", "MISSING_REQUIRED", f"{y}년 필수 계정 누락: {label}",
                                      fiscal_year=y, account_code=code))
         for code in cfg.accounts.non_negative:
             if v.get(code, 0) < 0:
-                issues.append(_issue("WARNING", "NEGATIVE_VALUE", f"{y}년 {code}가 음수입니다: {v[code]:,}원",
+                issues.append(_issue("WARNING", "NEGATIVE_VALUE",
+                                     f"{y}년 {cfg.accounts.accounts[code][0]}이(가) 음수입니다: {v[code]:,}원",
                                      fiscal_year=y, account_code=code))
         issues += _consistency(y, v, cfg.settings.balance_tolerance)
         if y - 1 in by_year:

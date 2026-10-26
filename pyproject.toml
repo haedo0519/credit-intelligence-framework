@@ -20,6 +20,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest==9.1.1"]
+# 실제 AI 보고서 생성용. 없어도 재무분석·위험규칙·스트레스 테스트는 동작한다
+llm = ["anthropic==2.3.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

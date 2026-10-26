@@ -1,0 +1,3 @@
+# 설정 해시(SHA-256)가 체크아웃 환경의 줄바꿈 변환에 흔들리지 않도록 LF로 고정
+* text=auto eol=lf
+*.xlsx binary

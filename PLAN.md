@@ -1,6 +1,6 @@
 # CIF (Credit Intelligence Framework) — Phase 0 점검 결과 및 구현 계획
 
-작성일: 2026-10-26 · 상태: Phase 0 (코드 미작성)
+작성일: 2026-10-26 · 상태: **Phase 0~6 구현 완료** (이 문서는 초기 계획 기록이며, 현재 사용법은 [README](README.md), 확정된 계산식·가정은 [docs/assumptions.md](docs/assumptions.md) 참고)
 
 > 포트폴리오용 분석 도구. 실제 금융기관 심사 시스템·검증된 신용평가 모델이 아니며, 대출 승인/거절을 결정하지 않는다.
 

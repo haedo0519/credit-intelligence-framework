@@ -20,33 +20,34 @@ COMPANIES = {
 }
 
 
-def _year_values(code: str, i: int, rng: np.random.Generator) -> dict[str, float]:
-    """i: 0,1,2 (2023~2025). 반환값은 백만원 단위, 자산 = 부채 + 자본이 성립한다."""
+def _year_values(code: str, i: int, rng: np.random.Generator, prev_equity: int | None) -> dict[str, float]:
+    """i: 0,1,2 (2023~2025). 반환값은 백만원 단위.
+
+    자산 = 부채 + 자본이 성립하고, 자본총계는 전기 자본 + 당기순이익으로 이어진다 (배당·증자 없음 가정).
+    """
     noise = 1 + rng.uniform(-0.03, 0.03)
     if code == "DEMO01":
         revenue = 50_000 * (1.06 ** i) * noise
         op_income = revenue * 0.09
-        equity = 30_000 + 2_500 * i
-        assets = 60_000 + 3_000 * i
+        base_equity, assets = 30_000, 60_000 + 3_000 * i
         interest, ocf, capital = 800, op_income * 1.1, 5_000
     elif code == "DEMO02":
         revenue = 40_000 * (0.9 ** i) * noise
         op_income = [600, -1_200, -2_100][i]
-        equity = 12_000 - 1_500 * i
-        assets = 45_000 - 1_000 * i
+        base_equity, assets = 12_000, 45_000 - 1_000 * i
         interest, ocf, capital = 1_500, [900, -400, -1_100][i], 6_000
     elif code == "DEMO03":
         revenue = 3_000 * (1.1 ** i) * noise
         op_income = [-2_500, -3_000, -3_400][i]
-        equity = [4_000, 1_500, -800][i]  # 부분잠식 → 완전잠식
-        assets = 15_000 - 500 * i
+        base_equity, assets = 4_000, 15_000 - 500 * i  # 누적 손실로 부분잠식 → 완전잠식
         interest, ocf, capital = 600, [-2_000, -2_600, -3_000][i], 5_000
     else:  # DEMO04
         revenue = 80_000 * (1.02 ** i) * noise
         op_income = revenue * 0.04
-        equity = 25_000 + 800 * i
-        assets = 90_000 + 2_000 * i
+        base_equity, assets = 25_000, 90_000 + 2_000 * i
         interest, ocf, capital = 2_000, op_income * 0.7, 10_000
+    net_income = round(op_income * 0.75 - interest * 0.5)
+    equity = base_equity if prev_equity is None else prev_equity + net_income
     liabilities = assets - equity
     borrowings = liabilities * 0.55
     return {
@@ -59,7 +60,7 @@ def _year_values(code: str, i: int, rng: np.random.Generator) -> dict[str, float
         "자본금": capital,
         "매출액": revenue,
         "영업이익": op_income,
-        "당기순이익": op_income * 0.75 - interest * 0.5,
+        "당기순이익": net_income,
         "이자비용": interest,
         "영업활동현금흐름": ocf,
         "차입금": borrowings,
@@ -67,9 +68,11 @@ def _year_values(code: str, i: int, rng: np.random.Generator) -> dict[str, float
 
 
 def _rows(code: str, rng: np.random.Generator) -> list[dict]:
-    rows = []
+    rows, equity = [], None
     for i, year in enumerate(YEARS):
-        for account, value in _year_values(code, i, rng).items():
+        values = _year_values(code, i, rng, equity)
+        equity = values["자본총계"]
+        for account, value in values.items():
             rows.append({
                 "company_code": code, "fiscal_year": year, "fiscal_end_date": f"{year}-12-31",
                 "statement_scope": "CFS", "account_name": account,

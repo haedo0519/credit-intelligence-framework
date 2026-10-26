@@ -49,6 +49,6 @@ st.dataframe(df, hide_index=True, use_container_width=True)
 
 chart = pd.DataFrame({"영업이익(백만원)": {r.description: r.operating_income / 1e6
                                        for r in results if r.operating_income is not None}})
-st.bar_chart(chart)
+st.bar_chart(chart, horizontal=True, sort=False)  # 표와 같은 순서, 긴 시나리오 이름도 보이게 가로 막대
 st.caption("적용 순서: " + " → ".join(results[0].steps) + ". 법인세 효과는 반영하지 않습니다.")
 conn.close()

@@ -117,6 +117,7 @@ def _resp(text="{}", stop="end_turn"):
 
 @pytest.fixture
 def adapter(monkeypatch):
+    pytest.importorskip("anthropic", reason='선택 설치 항목: pip install -e ".[llm]"')
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-not-a-real-key")
     return AnthropicAdapter()
 

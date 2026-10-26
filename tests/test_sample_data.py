@@ -36,6 +36,15 @@ def test_balance_identity_for_clean_companies():
         assert (diff <= 1).all(), code  # 백만원 반올림 오차만 허용
 
 
+def test_equity_rolls_forward_by_net_income():
+    """자본 변동 = 당기순이익 (실제 Claude 보고서가 이전 데이터의 불일치를 지적해 추가한 검사)."""
+    data = generate()
+    for code in ("DEMO01", "DEMO02", "DEMO03"):
+        p = _pivot(data[code])
+        for prev, cur in ((2023, 2024), (2024, 2025)):
+            assert p.loc[cur, "자본총계"] - p.loc[prev, "자본총계"] == p.loc[cur, "당기순이익"], (code, cur)
+
+
 def test_scenario_profiles():
     data = generate()
     loss = _pivot(data["DEMO02"])["영업이익"]

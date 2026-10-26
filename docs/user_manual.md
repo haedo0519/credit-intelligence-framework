@@ -64,7 +64,7 @@ CSV(UTF-8 또는 CP949) 또는 XLSX, **한 파일에 한 기업**, 한 행에 �
 - **단위·계정과목**: 단위별 행 수와 원본 계정명 → 표준 계정 매핑.
 - **정제 결과**: 원 단위로 환산한 연도별 금액. **원본**: 올린 파일 그대로.
 
-주요 코드: `MISSING_REQUIRED` 필수 계정 누락 · `DUPLICATE_SAME` 같은 값 중복(1건 사용) · `DUPLICATE_CONFLICT` 다른 값 중복(오류) · `SCOPE_MIXED` 연결/별도 혼합(우선 범위만 사용) · `BALANCE_MISMATCH` 자산 ≠ 부채+자본 · `FISCAL_MONTH_CHANGED` 결산월 변경 · `UNMAPPED_ACCOUNT` 인식하지 못한 계정.
+주요 코드: `MISSING_REQUIRED` 필수 계정 누락 · `DUPLICATE_SAME` 같은 값 중복(1건 사용) · `DUPLICATE_CONFLICT` 다른 값 중복(오류) · `SCOPE_MIXED` 연결/별도 혼합(우선 범위만 사용) · `BALANCE_MISMATCH` 자산 ≠ 부채+자본 · `FISCAL_MONTH_CHANGED` 결산월 변경 · `EQUITY_ROLLFORWARD_GAP` 자본 변동이 당기순이익과 1% 넘게 다름(배당·증자 등 확인, 보고서에 자본변동표 요청) · `UNMAPPED_ACCOUNT` 인식하지 못한 계정.
 
 ### 재무 분석
 연도별 비율 10종과 추세 그래프. 값 대신 상태가 보이면 계산하지 않은 것입니다: `DIV_BY_ZERO`(분모 0), `NOT_MEANINGFUL`(자본 0 이하 등 해석 불가), `MISSING_INPUT`(계정 누락), `NO_INTEREST_EXPENSE`(이자비용 0). **계산식과 사용 계정**에서 각 값의 입력 금액을 확인할 수 있습니다.

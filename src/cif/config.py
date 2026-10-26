@@ -16,6 +16,7 @@ class Settings(BaseModel):
     db_path: str
     raw_dir: str
     balance_tolerance: float = Field(ge=0, le=0.1)
+    equity_rollforward_tolerance: float = Field(ge=0, le=1)
     scope_priority: list[Scope] = Field(min_length=1)
     units: dict[str, int]
 

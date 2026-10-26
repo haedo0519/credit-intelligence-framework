@@ -125,6 +125,37 @@ def test_balance_mismatch_and_negative(cfg):
     assert {"BALANCE_MISMATCH", "NEGATIVE_VALUE"} <= _codes(r, "WARNING")
 
 
+def _shift_equity(df, year: str, delta_million: int):
+    """자산 = 부채 + 자본은 유지하면서 자본만 옮긴다 (부채에서 같은 금액을 뺌)."""
+    df = df.copy()
+    for account, sign in (("자본총계", 1), ("부채총계", -1)):
+        m = (df["fiscal_year"] == year) & (df["account_name"] == account)
+        df.loc[m, "amount"] = (df.loc[m, "amount"].astype(int) + sign * delta_million).astype(str)
+    return df
+
+
+def test_equity_rollforward_gap_flagged(cfg):
+    # 2025년 자본만 30억 더 늘림: 순이익으로 설명되지 않는 자본 변동
+    r = validate(_shift_equity(_clean(), "2025", 3_000), cfg)
+    gaps = [i for i in r.issues if i.code == "EQUITY_ROLLFORWARD_GAP"]
+    assert r.ok and [i.fiscal_year for i in gaps] == [2025] and gaps[0].level == "WARNING"
+    assert "BALANCE_MISMATCH" not in _codes(r)
+
+
+def test_equity_rollforward_within_tolerance(cfg):
+    # 기초 자본(약 330억)의 1% 미만 차이 = 소액 배당 수준은 경고하지 않음
+    r = validate(_shift_equity(_clean(), "2025", -100), cfg)
+    assert "EQUITY_ROLLFORWARD_GAP" not in _codes(r)
+
+
+def test_equity_rollforward_needs_both_years_and_net_income(cfg):
+    df = _shift_equity(_clean(), "2025", 3_000)
+    no_ni = df[~((df["fiscal_year"] == "2025") & (df["account_name"] == "당기순이익"))]
+    assert "EQUITY_ROLLFORWARD_GAP" not in _codes(validate(no_ni, cfg))
+    gap_year = df[df["fiscal_year"] != "2024"]  # 2023 → 2025는 연속 연도가 아님
+    assert "EQUITY_ROLLFORWARD_GAP" not in _codes(validate(gap_year, cfg))
+
+
 def test_row_error_blocks_analysis(cfg):
     df = _clean()
     df.loc[df.index[3], "amount"] = "N/A"

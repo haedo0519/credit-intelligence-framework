@@ -112,6 +112,8 @@ def validate(df: pd.DataFrame, cfg: Config) -> ValidationResult:
                 issues.append(_issue("WARNING", "NEGATIVE_VALUE", f"{y}년 {code}가 음수입니다: {v[code]:,}원",
                                      fiscal_year=y, account_code=code))
         issues += _consistency(y, v, cfg.settings.balance_tolerance)
+        if y - 1 in by_year:
+            issues += _equity_rollforward(y, by_year[y - 1], v, cfg.settings.equity_rollforward_tolerance)
 
     if 0 < len(by_year) < MIN_PERIODS:
         issues.append(_issue("INFO", "INSUFFICIENT_PERIODS",
@@ -135,6 +137,19 @@ def _consistency(y: int, v: dict[str, int], tol: float) -> list[Issue]:
             out.append(_issue("WARNING", "PART_EXCEEDS_TOTAL", f"{y}년 {part}가 {total}보다 큽니다",
                               fiscal_year=y, account_code=part))
     return out
+
+
+def _equity_rollforward(y: int, prev: dict[str, int], cur: dict[str, int], tol: float) -> list[Issue]:
+    """자본 변동과 당기순이익이 크게 다르면 경고 (배당·증자·기타포괄손익 등 다른 자본 변동 확인 필요)."""
+    te0, te1, ni = prev.get("TOTAL_EQUITY"), cur.get("TOTAL_EQUITY"), cur.get("NET_INCOME")
+    if None in (te0, te1, ni):
+        return []
+    gap = (te1 - te0) - ni
+    if abs(gap) <= tol * max(abs(te0), abs(ni)):
+        return []
+    return [_issue("WARNING", "EQUITY_ROLLFORWARD_GAP",
+                   f"{y}년 자본 변동 {te1 - te0:,}원과 당기순이익 {ni:,}원의 차이 {gap:,}원 "
+                   f"(배당·증자·기타포괄손익 등 확인 필요)", fiscal_year=y, account_code="TOTAL_EQUITY")]
 
 
 def validate_file(path: Path | str, cfg: Config) -> ValidationResult:

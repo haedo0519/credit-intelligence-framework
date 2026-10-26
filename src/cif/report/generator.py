@@ -110,6 +110,7 @@ DOC_FOR_ISSUE = {
     "SCOPE_MIXED": "연결·별도 재무제표 구분이 명확한 원본 자료",
     "FISCAL_MONTH_CHANGED": "결산월 변경 사유와 변경 전후 비교 가능 자료",
     "DUPLICATE_SAME": "중복 입력 여부를 확인할 수 있는 원본 자료",
+    "EQUITY_ROLLFORWARD_GAP": "자본변동표 (배당·증자·기타포괄손익 등 순이익 외 자본 변동 내역)",
 }
 
 

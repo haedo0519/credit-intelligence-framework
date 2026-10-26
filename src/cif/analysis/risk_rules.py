@@ -12,7 +12,8 @@ from cif.config import RiskRules
 from cif.ingest.mapping import Issue
 
 RuleStatus = Literal["TRIGGERED", "NOT_TRIGGERED", "NOT_EVALUATED"]
-# 재무자료 불일치·누락으로 보는 검증 이슈
+# 재무자료 불일치·누락으로 보는 검증 이슈.
+# EQUITY_ROLLFORWARD_GAP은 배당·증자로 정상적으로도 생기므로 위험 신호가 아니라 추가 자료 요청으로만 다룬다
 DATA_ISSUE_CODES = {"BALANCE_MISMATCH", "PART_EXCEEDS_TOTAL", "MISSING_REQUIRED", "NEGATIVE_VALUE",
                     "SCOPE_YEAR_GAP", "FISCAL_MONTH_CHANGED"}
 

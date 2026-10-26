@@ -53,6 +53,19 @@ def test_dirty_data_produces_document_requests(report_inputs):
     assert any("SCOPE_MIXED" in s or "연결/별도" in s for s in r.limitations)
 
 
+def test_equity_gap_becomes_document_request_not_risk(report_inputs):
+    from cif.analysis.risk_rules import evaluate_risks
+    from cif.ingest.mapping import Issue
+    inp = report_inputs("DEMO01")
+    gap = Issue(level="WARNING", code="EQUITY_ROLLFORWARD_GAP", message="자본 변동 차이", fiscal_year=2025,
+                account_code="TOTAL_EQUITY")
+    v = inp["validation"].model_copy(update={"issues": inp["validation"].issues + [gap]})
+    risks = evaluate_risks(v.values(), inp["ratios"], v.issues, inp["cfg"].risk)
+    assert next(e for e in risks if e.rule_id == "DATA_INCONSISTENCY").status == "NOT_TRIGGERED"
+    r = generate_report(**{**inp, "validation": v, "risks": risks})
+    assert any(d.item.startswith("자본변동표") and d.source == "RULE" for d in r.additional_documents)
+
+
 def test_no_decision_language_anywhere(report_inputs):
     for code in COMPANIES:
         r = generate_report(**report_inputs(code))

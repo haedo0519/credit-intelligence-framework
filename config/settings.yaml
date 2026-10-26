@@ -3,6 +3,9 @@ db_path: data/cif.db
 raw_dir: data/raw
 # 자산 = 부채 + 자본 검사 허용오차 (자산총계 대비 비율)
 balance_tolerance: 0.001
+# (당기 자본총계 − 전기 자본총계) − 당기순이익 차이 허용 비율.
+# 기준 = max(|전기 자본총계|, |당기순이익|). 배당·증자·기타포괄손익이 있으면 정상적으로도 차이가 나므로 경고로만 표시
+equity_rollforward_tolerance: 0.01
 # 한 분석 실행에는 한 범위만 사용. 앞에 있는 범위를 우선 선택
 scope_priority: [CFS, OFS]
 # 금액 단위 → 원 환산 배수

@@ -29,8 +29,8 @@ accounts:
     names: [자본총계]
   PAID_IN_CAPITAL:
     sj: [BS]
-    ids: [ifrs-full_IssuedCapital]
-    names: [자본금]
+    ids: [ifrs-full_IssuedCapital, dart_IssuedCapitalOfCommonStock]  # 기아 2022: 보통주자본금만 표시
+    names: [자본금, 보통주자본금]
   REVENUE:
     sj: [IS, CIS]
     ids: [ifrs-full_Revenue, ifrs-full_RevenueFromContractsWithCustomers]
@@ -51,6 +51,31 @@ accounts:
     sj: [CF]
     ids: [ifrs-full_CashFlowsFromUsedInOperatingActivities]
     names: [영업활동현금흐름, 영업활동으로인한현금흐름, 영업활동으로부터의현금흐름]
+  # 원인 진단용 현금흐름 세부 항목. DART는 지출 항목(이자의 지급, 유형자산의 취득)을 양수로 표시
+  CFO_ADJUSTMENTS:
+    sj: [CF]
+    ids: [ifrs-full_AdjustmentsForReconcileProfitLoss]
+    name_check: "조정"
+    names: [조정]
+  CFO_WORKING_CAPITAL:
+    sj: [CF]
+    ids: [dart_AdjustmentsForAssetsLiabilitiesOfOperatingActivities]
+    # 기아 2022: '영업에서 창출된 현금흐름'에 이 코드가 잘못 붙어 있음 → 코드가 맞아도 이름에 '변동'이 있어야 채택
+    name_check: "변동"
+    names: [영업활동으로인한자산·부채의변동, 영업활동으로인한자산부채의변동, 영업활동자산부채의변동, 순운전자본의변동,
+            운전자본의변동]
+  INTEREST_PAID:
+    sj: [CF]
+    ids: [ifrs-full_InterestPaidClassifiedAsOperatingActivities, ifrs-full_InterestPaidClassifiedAsFinancingActivities]
+    names: [이자의지급, 이자지급]
+  CAPEX:
+    sj: [CF]
+    ids: [ifrs-full_PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities]
+    names: [유형자산의취득]
+  FINANCING_CASH_FLOW:
+    sj: [CF]
+    ids: [ifrs-full_CashFlowsFromUsedInFinancingActivities]
+    names: [재무활동현금흐름, 재무활동으로인한현금흐름]
 # 차입금은 여러 계정의 합: 재무상태표에서 이름이 아래 패턴으로 끝나는 계정을 더한다 (리스부채·할인차금 제외)
 borrowings:
   sj: [BS]

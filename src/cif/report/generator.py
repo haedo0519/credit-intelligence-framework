@@ -11,14 +11,16 @@ from cif import __version__
 from cif.analysis.ratios import SPECS, MetricResult
 from cif.analysis.risk_rules import RuleEvaluation
 from cif.analysis.stress import ScenarioResult
+from cif.analysis.diagnosis import Diagnosis, Peer, diagnose
 from cif.config import Config
+from cif.fmt import won
 from cif.ingest.validation import ValidationResult
 from cif.report.evidence import Claim, ClaimResult, Pack, build_evidence, verify_claim
 from cif.report.llm import LLMAdapter, LLMError
 from cif.report.schema import (AIDraft, CreditReport, DocRequest, Overview, Provenance, Section, StressRow,
                                TableRow)
 
-PROMPT_VERSION = "1.0.0"
+PROMPT_VERSION = "1.1.0"
 TREND_ACCOUNTS = ["REVENUE", "OPERATING_INCOME", "NET_INCOME", "TOTAL_ASSETS", "TOTAL_LIABILITIES",
                   "TOTAL_EQUITY", "OPERATING_CASH_FLOW", "BORROWINGS"]
 
@@ -31,6 +33,7 @@ SYSTEM_PROMPT = """당신은 기업 여신심사 담당자를 돕는 재무분�
 - 위험 신호는 규칙 기반 점검 결과이며 부도확률이나 신용등급이 아닙니다. 확률·등급을 추정하지 않습니다.
 - 대출 승인·거절·가결·부결을 결정하거나 권고하지 않습니다. 종합 의견은 확인된 강점, 위험, 추가 확인 사항을 정리하는 검토 의견입니다.
 - additional_documents에는 판단에 필요하지만 패키지에 없는 자료(예: 차입금 명세, 감사보고서 주석)를 적습니다.
+- kind가 diagnosis인 근거(diag:규칙:summary 등)가 있으면, overall_opinion에서 위험 신호마다 산업 공통·기업 고유 구분과 수치로 본 원인을 그 근거를 인용해 설명하고, 확인이 필요한 사항을 덧붙입니다. 원인 진단에 '추가 확인 필요'로 적힌 부분은 단정하지 않습니다.
 - 각 항목은 짧고 구체적으로 씁니다."""
 
 
@@ -48,13 +51,7 @@ def build_user_prompt(overview: Overview, pack: Pack) -> str:
             f"근거 패키지 (id로 인용):\n{_pack_json(pack)}")
 
 
-def _won(v: float) -> str:
-    """금액 크기에 맞는 단위: 1조원 이상은 조원, 1억원 이상은 억원, 그 미만은 백만원."""
-    if abs(v) >= 1e12:
-        return f"{v / 1e12:,.2f}조원"
-    if abs(v) >= 1e8:
-        return f"{v / 1e8:,.1f}억원"
-    return f"{v / 1e6:,.0f}백만원"
+_won = won
 
 
 def _c(text: str, ids: list[str]) -> dict:
@@ -62,7 +59,8 @@ def _c(text: str, ids: list[str]) -> dict:
 
 
 def rule_based_draft(values, ratios: list[MetricResult], risks: list[RuleEvaluation],
-                     stress: list[ScenarioResult], labels: dict[str, str]) -> AIDraft:
+                     stress: list[ScenarioResult], labels: dict[str, str],
+                     diagnoses: list[Diagnosis] | None = None) -> AIDraft:
     """AI 없이 만드는 해석 문장. 근거 값을 그대로 옮기므로 검증을 통과해야 정상이다."""
     years = sorted(values)
     trend = []
@@ -98,13 +96,19 @@ def rule_based_draft(values, ratios: list[MetricResult], risks: list[RuleEvaluat
                        f"해당 항목의 원인과 개선 계획 확인이 필요합니다.", [f"risk:{e.rule_id}" for e in triggered])]
     else:
         opinions = [_c("규칙 기반 점검에서 위험 신호가 확인되지 않았습니다.", [f"risk:{e.rule_id}" for e in risks])]
+    # 위험 신호별 원인 진단 (HIGH 먼저): 산업 공통/기업 고유 구분과 수치로 본 원인
+    for dg in sorted(diagnoses or [], key=lambda d: d.severity != "HIGH"):
+        if dg.rule_id == "DATA_INCONSISTENCY":
+            continue
+        opinions.append(_c(f"[{dg.severity}] {dg.description}: {dg.classification_label} 요인으로 판단됩니다. "
+                           f"{dg.driver_summary}", [dg.driver_id("summary")]))
     if unevaluated:
         opinions.append(_c(f"자료 부족으로 판단하지 못한 규칙이 {len(unevaluated)}건 있습니다.",
                            [f"risk:{e.rule_id}" for e in unevaluated]))
     return AIDraft.model_validate({
         "trend_commentary": trend, "ratio_commentary": ratio_c[:8], "positives": positives[:8],
         "risk_commentary": risk_c[:10], "stress_commentary": stress_c[:8], "additional_documents": [],
-        "overall_opinion": opinions, "limitations": [],
+        "overall_opinion": opinions[:6], "limitations": [],
     })
 
 
@@ -169,12 +173,14 @@ def _table_ratios(ratios: list[MetricResult]) -> list[TableRow]:
 def generate_report(*, company_code: str, company_name: str, industry: str | None, case_no: str,
                     validation: ValidationResult, ratios: list[MetricResult], risks: list[RuleEvaluation],
                     stress: list[ScenarioResult], cfg: Config, input_hash: str,
-                    adapter: LLMAdapter | None = None) -> CreditReport:
+                    adapter: LLMAdapter | None = None, peers: list[Peer] | None = None) -> CreditReport:
+    """peers: 같은 업종 비교 기업 (원인 진단의 산업 공통/기업 고유 판단에 사용)."""
     if not validation.ok:
         raise ValueError("검증 오류가 있는 자료로는 보고서를 만들 수 없습니다")
     values = validation.values()
     labels = _labels(cfg)
-    pack = build_evidence(values, ratios, risks, stress, validation.issues, cfg.risk, labels)
+    diagnoses = diagnose(values, risks, cfg.risk, peers)
+    pack = build_evidence(values, ratios, risks, stress, validation.issues, cfg.risk, labels, diagnoses)
     overview = Overview(company_code=company_code, company_name=company_name, industry=industry, case_no=case_no,
                         scope=validation.scope, fiscal_years=sorted(values))
 
@@ -188,7 +194,7 @@ def generate_report(*, company_code: str, company_name: str, industry: str | Non
         except ValidationError as e:
             ai_error = f"AI 응답이 보고서 스키마와 맞지 않습니다 ({e.error_count()}개 오류)"
     if draft is None:
-        draft = rule_based_draft(values, ratios, risks, stress, labels)
+        draft = rule_based_draft(values, ratios, risks, stress, labels, diagnoses)
 
     def check(claims) -> list[ClaimResult]:
         return [verify_claim(c, pack) for c in claims]
@@ -229,11 +235,13 @@ def generate_report(*, company_code: str, company_name: str, industry: str | Non
         stress_assumptions=a.model_dump(),
         stress_section=Section(commentary=sections["stress"]),
         additional_documents=_rule_docs(validation, risks, labels) + ai_docs,
+        diagnoses=diagnoses,
         overall_opinion=sections["opinion"],
         provenance=Provenance(
             app_version=__version__, input_hash=input_hash, config_hashes=cfg.hashes,
             rule_version=cfg.risk.version, stress_version=cfg.stress.version, ai_mode=mode,
             ai_model=adapter.model_name if adapter is not None else None, prompt_version=PROMPT_VERSION,
             ai_error=ai_error, claim_counts=dict(sorted(counts.items())), evidence_ids=sorted(pack),
+            peer_inputs={p.name: p.input_hash for p in peers or []},
         ),
     )

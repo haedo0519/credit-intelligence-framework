@@ -1,29 +1,85 @@
-version: "1.0.0"
+version: "1.1.0"
 # 업종 무관 일반 가정값. 위험 신호는 부도확률이 아니다.
 disclaimer: "위험 신호는 규칙 기반 점검 결과이며 부도확률이나 신용등급이 아닙니다."
+
+# 원인 진단: 같은 업종 비교 기업 중 같은 신호가 나온 비율이 peer_common_share 이상이면 '산업 공통',
+# 미만이면 '기업 고유'. 비교 가능한 기업이 min_peers 미만이면 '판단 불가'.
+diagnosis:
+  peer_common_share: 0.5
+  min_peers: 1
+
+# remediation: 기업에 요청할 개선 계획 / checks: 심사자 확인 사항 / monitoring: 사후 관리 지표
+# 모두 규칙 기반 제안(템플릿)이며 사실 판단이 아니다.
 rules:
   CAPITAL_IMPAIRMENT_FULL:
     description: 완전자본잠식 (자본총계 ≤ 0)
     severity: HIGH
+    remediation:
+      - 유상증자·출자전환 등 자본 확충 계획과 일정
+      - 손실 사업 구조조정 또는 매각 계획
+    checks:
+      - 상장 유지 요건·차입 약정상 재무 기준 위반 여부
+      - 최대주주·계열사의 지원 의향과 여력
+    monitoring: 분기별 자본총계와 자본 확충 이행 실적
   CAPITAL_IMPAIRMENT_PARTIAL:
     description: 부분자본잠식 (0 < 자본총계 < 자본금)
     severity: MEDIUM
+    remediation:
+      - 결손 보전(감자·이익잉여금 회복) 계획
+      - 수익성 회복을 위한 원가 절감·가격 정책
+    checks:
+      - 결손 누적 원인(일회성 손실 여부)
+      - 향후 2~3년 손익 계획의 실현 가능성
+    monitoring: 자본잠식률(1 − 자본총계/자본금) 추이
   OPERATING_LOSS_PERSISTENT:
     description: 영업손실 연속 발생
     severity: HIGH
     params: {consecutive_years: 2}
+    remediation:
+      - 적자 사업·제품군별 손익 개선 계획
+      - 고정비 절감과 가격 조정 계획
+    checks:
+      - 매출 감소와 원가율 상승 중 어느 쪽이 주된 원인인지 (사업부문별 손익)
+      - 동종 업계 업황과의 비교 (산업 공통 여부)
+    monitoring: 분기별 영업이익률과 매출 증감률
   INTEREST_COVERAGE_WEAK:
     description: 이자보상배율 1배 미만 또는 큰 폭 하락
     severity: HIGH
     params: {min_ratio: 1.0, max_drop: 2.0}
+    remediation:
+      - 차입금 감축·만기 연장 등 재무구조 개선 계획
+      - 고금리 차입의 저금리 전환 계획
+    checks:
+      - 차입금 만기 구조와 차환 가능성
+      - 변동금리 차입 비중과 금리 상승 시 이자 부담
+    monitoring: 반기별 이자보상배율과 순차입금
   LIQUIDITY_DETERIORATION:
     description: 유동비율 100% 미만 또는 전년 대비 큰 폭 하락
     severity: MEDIUM
     params: {min_current_ratio_pct: 100.0, max_drop_pctp: 20.0}
+    remediation:
+      - 단기차입금의 장기 전환 계획
+      - 매출채권 회수·재고 축소 등 운전자본 관리 계획
+    checks:
+      - 1년 내 만기 도래 차입금과 상환 재원
+      - 미사용 여신 한도 등 유동성 대응 수단
+    monitoring: 분기별 유동비율과 현금성자산 잔액
   NEGATIVE_OPERATING_CASH_FLOW:
     description: 영업활동현금흐름 적자 (연속 시 HIGH)
     severity: MEDIUM
     params: {escalate_after_years: 2}
+    remediation:
+      - 운전자본(매출채권·재고) 관리 개선 계획
+      - 영업현금 부족분의 조달 계획과 상환 재원
+    checks:
+      - 영업 자산·부채 변동의 세부 내역 (매출채권, 재고, 금융업 채권 등)
+      - 금융 부문을 연결하는 경우 부문별(제조/금융) 현금흐름
+    monitoring: 분기별 영업활동현금흐름과 순차입금 증감
   DATA_INCONSISTENCY:
     description: 재무자료 불일치 또는 필수 계정 누락
     severity: MEDIUM
+    remediation:
+      - 감사받은 원본 재무제표와 주석 제출
+    checks:
+      - 누락·불일치 계정의 원본 확인
+    monitoring: 자료 보완 여부

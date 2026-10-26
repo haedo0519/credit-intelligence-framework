@@ -58,11 +58,20 @@ class Rule(BaseModel):
     description: str
     severity: Severity
     params: dict[str, float] = {}
+    remediation: list[str] = []   # 기업에 요청할 개선 계획 (규칙 기반 제안)
+    checks: list[str] = []        # 심사자 확인 사항
+    monitoring: str = ""          # 사후 관리 지표
+
+
+class DiagnosisConfig(BaseModel):
+    peer_common_share: float = Field(gt=0, le=1)
+    min_peers: int = Field(ge=1)
 
 
 class RiskRules(BaseModel):
     version: str
     disclaimer: str
+    diagnosis: DiagnosisConfig
     rules: dict[str, Rule]
 
 

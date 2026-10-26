@@ -52,6 +52,8 @@ def test_hash_changes_when_rules_change(cfg_dir):
     ("settings.yaml", lambda d: d["units"].update(원=0)),
     ("settings.yaml", lambda d: d.update(equity_rollforward_tolerance=-0.01)),
     ("risk_rules.yaml", lambda d: d["rules"]["DATA_INCONSISTENCY"].update(severity="CRITICAL")),
+    ("risk_rules.yaml", lambda d: d["diagnosis"].update(peer_common_share=0)),
+    ("risk_rules.yaml", lambda d: d.pop("diagnosis")),
 ])
 def test_invalid_config_rejected(cfg_dir, fname, mutate):
     _edit(cfg_dir / fname, mutate)

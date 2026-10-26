@@ -119,9 +119,11 @@ def map_statements(items: list[dict], mapping: dict) -> tuple[dict[str, int], li
     out: dict[str, int] = {}
     for code, spec in mapping["accounts"].items():
         names = {_norm(n) for n in spec["names"]}
+        # name_check: 회사가 표준코드를 잘못 붙인 경우를 거르기 위해 코드로 찾은 항목의 이름도 확인
+        name_ok = lambda it: not spec.get("name_check") or re.search(spec["name_check"], it.get("account_nm", ""))  # noqa: E731
         for sj in spec["sj"]:
             rows = [it for it in items if it.get("sj_div") == sj]
-            hit = next((it for it in rows if it.get("account_id") in spec["ids"]), None) \
+            hit = next((it for it in rows if it.get("account_id") in spec["ids"] and name_ok(it)), None) \
                 or next((it for it in rows if _norm(it.get("account_nm", "")) in names), None)
             if hit is not None and _amount(hit.get("thstrm_amount")) is not None:
                 out[code] = _amount(hit["thstrm_amount"])

@@ -9,6 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from cif.analysis.diagnosis import Diagnosis, peer_eid
 from cif.analysis.ratios import MetricResult
 from cif.analysis.risk_rules import RuleEvaluation
 from cif.analysis.stress import ScenarioResult
@@ -18,7 +19,7 @@ from cif.ingest.mapping import Issue
 
 class EvidenceItem(BaseModel):
     id: str
-    kind: Literal["account", "ratio", "risk", "rule_param", "stress", "issue"]
+    kind: Literal["account", "ratio", "risk", "rule_param", "stress", "issue", "diagnosis", "peer"]
     label: str
     fiscal_year: int | None = None
     value: float | None = None
@@ -39,7 +40,7 @@ SCENARIO_PARAMS = {"revenue_change_pct": ("매출 변화율", "%"), "op_margin_c
 
 def build_evidence(values: dict[int, dict[str, int]], ratios: list[MetricResult], risks: list[RuleEvaluation],
                    stress: list[ScenarioResult], issues: list[Issue], rules: RiskRules,
-                   account_labels: dict[str, str]) -> Pack:
+                   account_labels: dict[str, str], diagnoses: list[Diagnosis] | None = None) -> Pack:
     items: list[EvidenceItem] = []
     for year, accts in sorted(values.items()):
         for code, amount in sorted(accts.items()):
@@ -72,6 +73,21 @@ def build_evidence(values: dict[int, dict[str, int]], ratios: list[MetricResult]
     for eid, iss in grouped.items():
         items.append(EvidenceItem(id=eid, kind="issue", label=iss[0].code, fiscal_year=iss[0].fiscal_year,
                                   status=iss[0].level, detail=" / ".join(i.message for i in iss)))
+    for dg in diagnoses or []:
+        driver_ids = [dg.driver_id(d.key) for d in dg.drivers]
+        peer_ids = [peer_eid(p.code, dg.rule_id) for p in dg.peer_results]
+        for d in dg.drivers:
+            items.append(EvidenceItem(id=dg.driver_id(d.key), kind="diagnosis", label=f"{dg.description} - {d.label}",
+                                      fiscal_year=dg.fiscal_year, value=d.value, unit=d.unit, related=d.evidence_ids))
+        for p in dg.peer_results:
+            items.append(EvidenceItem(id=peer_eid(p.code, dg.rule_id), kind="peer",
+                                      label=f"{p.name} - {dg.description}", fiscal_year=dg.fiscal_year,
+                                      status=p.status, detail=p.message))
+        items.append(EvidenceItem(id=dg.driver_id("summary"), kind="diagnosis", label=f"{dg.description} - 원인 진단",
+                                  fiscal_year=dg.fiscal_year, status=dg.classification,
+                                  detail=f"{dg.classification_label}: {dg.peer_summary} {dg.driver_summary} "
+                                         f"{dg.estimate_note}".strip(),
+                                  related=driver_ids + peer_ids + [f"risk:{dg.rule_id}"]))
     pack = {it.id: it for it in items}
     assert len(pack) == len(items), "evidence id 중복"
     return pack
@@ -91,9 +107,9 @@ DECISION_PATTERNS = [
 
 NUM_RE = re.compile(
     r"(?<![\w.])([-−△]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[-−△]?\d+(?:\.\d+)?)\s*"
-    r"(조원|억원|백만원|천원|원|%p|％p|%|％|배|회|bp|개년|년|개월|개|건|월|분기|위)?"
+    r"(조원|억원|백만원|천원|원|%p|％p|%|％|배|회|bp|개년|년|개월|개|건|곳|월|분기|위)?"
 )
-IGNORED_UNITS = {"개년", "년", "개월", "개", "건", "월", "분기", "위"}  # 연도·개수는 검증 대상 아님
+IGNORED_UNITS = {"개년", "년", "개월", "개", "건", "곳", "월", "분기", "위"}  # 연도·개수는 검증 대상 아님
 WON_SCALE = {"조원": 1e12, "억원": 1e8, "백만원": 1e6, "천원": 1e3, "원": 1.0}
 UNIT_GROUP = {"%": "%", "％": "%", "%p": "%", "％p": "%", "배": "배", "회": "회", "bp": "bp"}
 

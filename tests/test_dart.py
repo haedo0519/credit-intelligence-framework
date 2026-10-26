@@ -62,6 +62,30 @@ def test_real_world_variants():
     assert "리스부채" not in used
 
 
+def test_cash_flow_detail_accounts():
+    """원인 진단용 현금흐름 세부 항목 (현대자동차 2024년 DART 항목 형태)."""
+    items = [item("CF", "ifrs-full_AdjustmentsForReconcileProfitLoss", "조정", "23950000000000"),
+             item("CF", "dart_AdjustmentsForAssetsLiabilitiesOfOperatingActivities", "영업활동으로 인한 자산·부채의 변동",
+                  "-35160000000000"),
+             item("CF", "ifrs-full_InterestPaidClassifiedAsOperatingActivities", "이자의 지급", "5930000000000"),
+             item("CF", "ifrs-full_CashFlowsFromUsedInFinancingActivities", "재무활동으로 인한 현금흐름", "19490000000000")]
+    values, _ = dart.map_statements(items, dart.load_map())
+    assert values == {"CFO_ADJUSTMENTS": 23_950_000_000_000, "CFO_WORKING_CAPITAL": -35_160_000_000_000,
+                      "INTEREST_PAID": 5_930_000_000_000, "FINANCING_CASH_FLOW": 19_490_000_000_000}
+
+
+def test_mislabelled_xbrl_id_rejected_by_name_check():
+    """기아 2022년 DART 응답: '영업에서 창출된 현금흐름'에 운전자본 변동 코드가 잘못 붙어 있음."""
+    items = [item("CF", "dart_AdjustmentsForAssetsLiabilitiesOfOperatingActivities", "영업에서 창출된 현금흐름",
+                  "11833636000000"),
+             item("BS", "dart_IssuedCapitalOfCommonStock", "보통주자본금", "2139317000000"),
+             item("CF", "-표준계정코드 미사용-", "순운전자본의변동", "-380325279751")]
+    values, _ = dart.map_statements(items[:2], dart.load_map())
+    assert "CFO_WORKING_CAPITAL" not in values           # 잘못된 값을 쓰지 않음
+    assert values["PAID_IN_CAPITAL"] == 2_139_317_000_000
+    assert dart.map_statements(items[2:], dart.load_map())[0]["CFO_WORKING_CAPITAL"] == -380_325_279_751  # KG모빌리티
+
+
 def test_blank_amounts_skipped_and_currency_checked():
     items = [item("BS", "ifrs-full_Assets", "자산총계", "-"), item("BS", "ifrs-full_Equity", "자본총계", "")]
     assert dart.map_statements(items, dart.load_map())[0] == {}

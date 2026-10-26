@@ -5,6 +5,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from cif import __version__
+from cif.analysis.diagnosis import Peer
 from cif.analysis.ratios import MetricResult, compute_ratios
 from cif.analysis.risk_rules import RuleEvaluation, evaluate_risks
 from cif.analysis.stress import ScenarioResult, run_stress
@@ -57,6 +58,21 @@ def upload_statements(conn, cfg: Config, company_id: int, path: Path | str) -> U
     return UploadResult(document_id=doc_id, validation=v, stored_rows=stored)
 
 
+def find_peers(conn, cfg: Config, company_id: int, industry: str | None, scope: str) -> list[Peer]:
+    """같은 업종으로 등록된 다른 기업의 최신 자료 중 검증을 통과하고 재무제표 범위가 같은 것."""
+    if not industry:
+        return []
+    peers = []
+    rows = conn.execute("SELECT c.id, c.company_code, c.name, d.stored_path, d.sha256 FROM companies c "
+                        "JOIN documents d ON d.id = (SELECT MAX(id) FROM documents WHERE company_id = c.id) "
+                        "WHERE c.industry = ? AND c.id != ? ORDER BY c.company_code", (industry, company_id))
+    for r in rows:
+        v = validate_file(r["stored_path"], cfg)
+        if v.ok and v.scope == scope:
+            peers.append(Peer(code=r["company_code"], name=r["name"], values=v.values(), input_hash=r["sha256"]))
+    return peers
+
+
 def run_analysis(conn, cfg: Config, case_id: int, document_id: int, adapter: LLMAdapter | None = None) -> int:
     """문서의 원본 파일을 다시 검증해 분석하고 새 run으로 저장한다. 이전 run은 그대로 남는다."""
     doc = conn.execute("SELECT * FROM documents WHERE id=?", (document_id,)).fetchone()
@@ -76,7 +92,8 @@ def run_analysis(conn, cfg: Config, case_id: int, document_id: int, adapter: LLM
     stress = run_stress(values, cfg.stress)
     report = generate_report(company_code=row["company_code"], company_name=row["name"], industry=row["industry"],
                              case_no=row["case_no"], validation=v, ratios=ratios, risks=risks, stress=stress,
-                             cfg=cfg, input_hash=doc["sha256"], adapter=adapter)
+                             cfg=cfg, input_hash=doc["sha256"], adapter=adapter,
+                             peers=find_peers(conn, cfg, row["id"], row["industry"], v.scope))
     results = (
         [{"kind": "validation", "key": i.code, "fiscal_year": i.fiscal_year, "status": i.level,
           "payload": i.model_dump()} for i in v.issues]

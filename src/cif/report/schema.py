@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from cif.analysis.diagnosis import Diagnosis
 from cif.analysis.risk_rules import RuleEvaluation
 from cif.report.evidence import Claim, ClaimResult
 
@@ -92,6 +93,7 @@ class Provenance(BaseModel):
     ai_error: str | None = None
     claim_counts: dict[str, int]
     evidence_ids: list[str]
+    peer_inputs: dict[str, str] = {}   # 원인 진단에 쓴 비교 기업 → 입력 파일 SHA-256
 
 
 class Section(BaseModel):
@@ -116,5 +118,6 @@ class CreditReport(BaseModel):
     stress_assumptions: dict[str, float | int | str]
     stress_section: Section
     additional_documents: list[DocRequest]               # 8
-    overall_opinion: list[ClaimResult]                   # 9
+    diagnoses: list[Diagnosis] = []                      # 9-1·9-2 원인 진단, 개선 계획 (이전 보고서와 호환)
+    overall_opinion: list[ClaimResult]                   # 9-3
     provenance: Provenance                               # 10

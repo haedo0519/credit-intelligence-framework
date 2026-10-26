@@ -35,6 +35,9 @@ table.layout td { border: none; padding: 0 6pt 0 0; }
 .HIGH { color: #ffffff; background: #b42318; font-weight: bold; text-align: center; }
 .MEDIUM { color: #ffffff; background: #d9822b; font-weight: bold; text-align: center; }
 .LOW, .INFO { background: #eef2f6; text-align: center; }
+.cls-COMPANY_SPECIFIC { color: #b42318; font-weight: bold; }
+.cls-INDUSTRY_COMMON { color: #1f3a5f; font-weight: bold; }
+.cls-UNDETERMINED { color: #616e7c; }
 .count-high { color: #b42318; font-size: 16pt; font-weight: bold; }
 .count-med { color: #d9822b; font-size: 16pt; font-weight: bold; }
 .count-ne { color: #52606d; font-size: 16pt; font-weight: bold; }
@@ -165,7 +168,34 @@ ul { margin: 2pt 0 2pt 14pt; padding: 0; }
 </table>
 {% else %}<p class="muted">해당 내용 없음</p>{% endif %}
 
-<h2>9. 종합적인 심사 검토 의견</h2>
+<h2{% if r.diagnoses %} class="pagebreak"{% endif %}>9. 종합적인 심사 검토 의견</h2>
+{% if r.diagnoses %}
+<h3>9-1. 위험 신호 원인 진단</h3>
+<p class="muted">산업 공통 여부는 같은 업종 비교 기업에 같은 규칙을 적용한 결과로, 원인은 재무제표 항목의 항등식 분해로 판단했습니다.
+{% if p.peer_inputs %}비교 기업: {{ p.peer_inputs.keys() | join(", ") }}.{% else %}비교 기업이 없어 산업 공통 여부는 판단하지 못했습니다.{% endif %}</p>
+<table>
+<tr><th width="20%">위험 신호</th><th width="12%">원인 구분</th><th>근거</th></tr>
+{% for d in r.diagnoses %}
+<tr><td><span class="{{ d.severity }}">&nbsp;{{ d.severity }}&nbsp;</span><br>{{ d.description }}</td>
+<td class="cls-{{ d.classification }}">{{ d.classification_label }}</td>
+<td><b>동종 비교</b> {{ d.peer_summary }}<br><b>수치로 본 원인</b> {{ d.driver_summary }}
+{% if d.estimate_note %}<br><span class="muted">추가 확인 필요: {{ d.estimate_note }}</span>{% endif %}</td></tr>
+{% endfor %}
+</table>
+
+<h3>9-2. 개선 계획 및 확인 과제 <span class="muted">(규칙 기반 제안)</span></h3>
+<table>
+<tr><th width="20%">위험 신호</th><th>기업에 요청할 개선 계획</th><th>심사자 확인 사항</th><th width="18%">사후 관리 지표</th></tr>
+{% for d in r.diagnoses %}
+<tr><td>{{ d.description }}</td>
+<td>{% for x in d.remediation %}· {{ x }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+<td>{% for x in d.checks %}· {{ x }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+<td>{{ d.monitoring }}</td></tr>
+{% endfor %}
+</table>
+
+<h3>9-3. 종합 의견</h3>
+{% endif %}
 {{ claims(r.overall_opinion) }}
 <p class="muted">본 의견은 검토 참고 의견이며 대출 승인·거절 결정이 아닙니다.</p>
 

@@ -14,6 +14,12 @@ accounts:
   INTEREST_EXPENSE: [이자비용]
   OPERATING_CASH_FLOW: [영업활동현금흐름, 영업활동으로인한현금흐름]
   BORROWINGS: [차입금, 총차입금]
+  # 원인 진단용 현금흐름 세부 항목 (선택 입력, 비율 계산에는 쓰지 않음)
+  CFO_ADJUSTMENTS: [현금흐름조정항목, 조정]
+  CFO_WORKING_CAPITAL: [영업자산부채변동, 영업활동으로인한자산·부채의변동, 영업활동으로인한자산부채의변동]
+  INTEREST_PAID: [이자의지급, 이자지급]
+  CAPEX: [유형자산의취득]
+  FINANCING_CASH_FLOW: [재무활동현금흐름, 재무활동으로인한현금흐름]
 # 재무비율·위험 규칙에 쓰이는 계정 (누락 시 WARNING, 해당 비율은 MISSING_INPUT)
 required:
   - TOTAL_ASSETS

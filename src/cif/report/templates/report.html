@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if font_path %}CIF Credit Review{% else %}{{ r.title }} - {{ r.overview.company_name }}{% endif %}</title>{# PDF 머리글 제목은 화면에 나오지 않으며 기본 글꼴로 처리돼 경고만 남긴다 #}
+<style>
+{% if font_path %}
+@font-face { font-family: KoreanFont; src: url("{{ font_path }}"); }
+@font-face { font-family: KoreanFont; src: url("{{ bold_font_path }}"); font-weight: bold; }
+{% endif %}
+@page { size: A4; margin: 1.4cm 1.5cm 1.6cm 1.5cm;
+        @frame footer { -pdf-frame-content: pagefooter; bottom: 0.6cm; margin-left: 1.5cm; margin-right: 1.5cm; height: 0.8cm; } }
+/* PDF(xhtml2pdf)는 글꼴 목록을 해석하지 못하므로 PDF일 때는 등록한 글꼴 하나만 지정 */
+body { font-family: {% if font_path %}KoreanFont{% else %}"Malgun Gothic", "Apple SD Gothic Neo", sans-serif{% endif %};
+       font-size: 9.5pt; color: #1f2933; line-height: 1.5; background: #ffffff; {% if not font_path %}max-width: 860px; margin: 0 auto; padding: 0 16px;{% endif %} }
+.band { background: #1f3a5f; color: #ffffff; padding: 10pt 12pt; }
+.band .kicker { font-size: 8pt; color: #c9d6e3; letter-spacing: 1pt; }
+.band .company { font-size: 18pt; font-weight: bold; color: #ffffff; }
+.band .meta { font-size: 8.5pt; color: #dbe5ee; }
+.disclaimer { border-left: 3pt solid #d9822b; background: #fff7ed; padding: 5pt 7pt; font-size: 8pt; color: #7c4a14; margin: 6pt 0; }
+h2 { font-size: 12pt; color: #1f3a5f; border-bottom: 1.5pt solid #1f3a5f; padding-bottom: 2pt; margin: 14pt 0 6pt 0; }
+h3 { font-size: 10pt; color: #1f3a5f; margin: 8pt 0 4pt 0; }
+table { border-collapse: collapse; width: 100%; margin: 4pt 0; }
+th, td { border-bottom: 0.5pt solid #cbd2d9; padding: 3pt 5pt; font-size: 8.5pt; vertical-align: top; }
+th { background: #eef2f6; text-align: left; color: #1f3a5f; }
+td.num, th.num { text-align: right; }
+table.layout td { border: none; padding: 0 6pt 0 0; }
+.kpi th { background: #1f3a5f; color: #ffffff; }
+.kpi td.label { color: #52606d; }
+.box { border: 0.5pt solid #cbd2d9; background: #f8fafc; padding: 6pt 8pt; }
+.summary li { margin-bottom: 3pt; }
+.muted { color: #616e7c; font-size: 8pt; }
+.neg { color: #b42318; }
+.HIGH { color: #ffffff; background: #b42318; font-weight: bold; text-align: center; }
+.MEDIUM { color: #ffffff; background: #d9822b; font-weight: bold; text-align: center; }
+.LOW, .INFO { background: #eef2f6; text-align: center; }
+.count-high { color: #b42318; font-size: 16pt; font-weight: bold; }
+.count-med { color: #d9822b; font-size: 16pt; font-weight: bold; }
+.count-ne { color: #52606d; font-size: 16pt; font-weight: bold; }
+.unverified { color: #616e7c; }
+.chart { text-align: center; margin: 4pt 0 2pt 0; }
+.chart img { {% if not font_path %}max-width: 100%; height: auto;{% endif %} }
+.source { font-size: 7.5pt; color: #7b8794; margin: 0 0 6pt 0; }
+ul { margin: 2pt 0 2pt 14pt; padding: 0; }
+.pagebreak { page-break-before: always; }
+{% if not font_path %}
+@media (max-width: 680px) { table.layout td { display: block; width: 100%; padding: 0; } }
+{% endif %}
+</style>
+</head>
+<body>
+
+{% macro claims(items) -%}
+{% set ok = items | selectattr("status", "equalto", "VERIFIED") | list %}
+{% set bad = items | rejectattr("status", "equalto", "VERIFIED") | list %}
+{% if ok %}<ul>{% for c in ok %}<li>{{ c.text }}</li>{% endfor %}</ul>{% endif %}
+{% if bad %}
+<p class="unverified">검증되지 않은 문장 (사실로 확정하지 않음):</p>
+<ul class="unverified">{% for c in bad %}
+  <li>[{{ status_label[c.status] }}] {% if c.status == "POLICY_VIOLATION" %}(대출 결정 표현이 포함되어 본문을 표시하지 않음){% else %}{{ c.text }}{% endif %} <span class="muted">{{ c.reason }}</span></li>
+{% endfor %}</ul>
+{% endif %}
+{% if not items %}<p class="muted">해당 내용 없음</p>{% endif %}
+{%- endmacro %}
+
+{% macro chart(key, caption, width) -%}
+{% if charts.get(key) %}<div class="chart"><img src="{{ charts[key] }}" {% if font_path %}width="{{ width }}"{% endif %}></div>
+<p class="source">{{ caption }}</p>{% endif %}
+{%- endmacro %}
+
+{% set last = years[-1] %}
+<div class="band">
+  <div class="kicker">CREDIT REVIEW · 여신심사 검토 보고서 (참고용)</div>
+  <div class="company">{{ r.overview.company_name }}</div>
+  <div class="meta">{{ r.overview.company_code }} · {{ r.overview.industry or "업종 미기재" }} · 심사 건 {{ r.overview.case_no }} ·
+    {{ scope_label.get(r.overview.scope, r.overview.scope) }} {{ years[0] }}~{{ last }}{% if issued %} · 작성일 {{ issued }}{% endif %}</div>
+</div>
+<p class="disclaimer">{{ r.disclaimer }}</p>
+
+<table class="layout"><tr>
+<td width="58%">
+  <h3>핵심 요약</h3>
+  <div class="summary">{{ claims(r.overall_opinion) }}</div>
+  <h3>위험 신호 ({{ last }}년 기준, 규칙 버전 {{ p.rule_version }})</h3>
+  <table class="box"><tr>
+    <td width="33%"><span class="count-high">{{ high_count }}</span><br><span class="muted">HIGH</span></td>
+    <td width="33%"><span class="count-med">{{ medium_count }}</span><br><span class="muted">MEDIUM</span></td>
+    <td width="34%"><span class="count-ne">{{ r.risk_not_evaluated | length }}</span><br><span class="muted">판단 불가</span></td>
+  </tr></table>
+  {% if r.risk_signals %}<ul>{% for e in r.risk_signals %}<li>{{ e.description }}</li>{% endfor %}</ul>{% endif %}
+</td>
+<td width="42%">
+  <h3>주요 지표</h3>
+  <table class="kpi">
+    <tr><th>항목</th>{% for y in years[-2:] %}<th class="num">{{ y }}</th>{% endfor %}</tr>
+    {% for label, row, kind in kpis %}
+    <tr><td class="label">{{ label }}</td>{% for y in years[-2:] %}{% set v = row.cells.get(y) if row else none %}
+      <td class="num {% if v is not none and v < 0 %}neg{% endif %}">{% if v is none %}<span class="muted">{{ row.statuses.get(y, "-") | mstatus if row else "-" }}</span>{% elif kind == "won" %}{{ v | eok }}{% else %}{{ v | ratio }}{% endif %}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table>
+  <p class="source">금액 단위: 억원. 비율은 표시 단위 기준. 출처: 입력 재무제표, CIF 계산.</p>
+</td>
+</tr></table>
+
+<h2>1. 기업 및 심사 건 개요</h2>
+<table>
+<tr><th width="18%">기업</th><td width="32%">{{ r.overview.company_name }} ({{ r.overview.company_code }})</td><th width="18%">업종</th><td>{{ r.overview.industry or "-" }}</td></tr>
+<tr><th>심사 건</th><td>{{ r.overview.case_no }}</td><th>재무제표 범위</th><td>{{ scope_label.get(r.overview.scope, r.overview.scope) }}</td></tr>
+<tr><th>분석 연도</th><td colspan="3">{{ years | join(", ") }}</td></tr>
+</table>
+
+<h2>2. 분석 범위와 자료의 한계</h2>
+<ul>{% for s in r.limitations %}<li>{{ s }}</li>{% endfor %}</ul>
+{% if r.ai_limitations %}{{ claims(r.ai_limitations) }}{% endif %}
+
+<h2 class="pagebreak">3. 최근 3개년 재무 추세</h2>
+{{ chart("revenue_margin", "그림 1. 매출액(억원)과 영업이익률(%). 출처: 입력 재무제표, CIF 계산", 470) }}
+{{ chart("earnings_cash", "그림 2. 영업이익·당기순이익·영업활동현금흐름(억원). 출처: 입력 재무제표", 470) }}
+<table>
+<tr><th>계정 (억원)</th>{% for y in years %}<th class="num">{{ y }}</th>{% endfor %}</tr>
+{% for row in r.trend %}<tr><td>{{ row.label }}</td>{% for y in years %}{% set v = row.cells.get(y) %}<td class="num {% if v is not none and v < 0 %}neg{% endif %}">{{ v | eok }}</td>{% endfor %}</tr>{% endfor %}
+</table>
+{{ claims(r.trend_section.commentary) }}
+
+<h2>4. 주요 재무비율</h2>
+{{ chart("key_ratios", "그림 3. 핵심 재무비율 추이. 값이 없는 연도는 계산 상태를 표시. 출처: CIF 계산", 470) }}
+<table>
+<tr><th>지표</th>{% for y in years %}<th class="num">{{ y }}</th>{% endfor %}</tr>
+{% for row in r.ratios %}<tr><td>{{ row.label }} ({{ row.unit }})</td>{% for y in years %}{% set v = row.cells.get(y) %}<td class="num {% if v is not none and v < 0 %}neg{% endif %}">{% if v is not none %}{{ v | ratio }}{% else %}<span class="muted">{{ row.statuses.get(y, "-") | mstatus }}</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}
+</table>
+{{ claims(r.ratio_section.commentary) }}
+
+<h2>5. 긍정적인 요소</h2>
+{{ claims(r.positives) }}
+
+<h2>6. 주요 위험 신호</h2>
+<p class="muted">위험 신호는 규칙 기반 점검 결과이며 부도확률이나 신용등급이 아닙니다.</p>
+{% if r.risk_signals %}
+<table>
+<tr><th width="11%">심각도</th><th width="34%">규칙</th><th>근거</th></tr>
+{% for e in r.risk_signals %}<tr><td class="{{ e.severity }}">{{ e.severity }}</td><td>{{ e.description }}</td><td>{{ e.message }}</td></tr>{% endfor %}
+</table>
+{% else %}<p>탐지된 위험 신호 없음</p>{% endif %}
+{% if r.risk_not_evaluated %}<p class="muted">자료 부족으로 판단하지 못한 규칙: {% for e in r.risk_not_evaluated %}{{ e.description }}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+{{ claims(r.risk_section.commentary) }}
+
+<h2>7. 스트레스 테스트 결과</h2>
+{{ chart("stress_impact", "그림 4. 시나리오별 영업이익(억원)과 이자보상배율(ICR). 법인세 효과 미반영. 출처: CIF 계산", 470) }}
+<table>
+<tr><th>시나리오</th><th class="num">매출액</th><th class="num">영업이익</th><th class="num">이자비용</th><th class="num">이자보상배율</th><th class="num">세전이익 변화</th></tr>
+{% for s in r.stress %}<tr><td>{{ s.description }}</td>
+{% if s.status == "OK" %}<td class="num">{{ s.revenue | eok }}</td><td class="num {% if s.operating_income < 0 %}neg{% endif %}">{{ s.operating_income | eok }}</td><td class="num">{{ s.interest_expense | eok }}</td><td class="num">{{ s.interest_coverage | ratio }}</td><td class="num {% if s.pretax_income_change is not none and s.pretax_income_change < 0 %}neg{% endif %}">{{ s.pretax_income_change | eok }}</td>
+{% else %}<td colspan="5" class="muted">{{ s.status }} {{ s.notes | join(" ") }}</td>{% endif %}</tr>{% endfor %}
+</table>
+<p class="source">금액 단위: 억원. 가정: 변동금리 비중 {{ "%.0f" | format(r.stress_assumptions.floating_rate_share * 100) }}%,
+  적용 {{ r.stress_assumptions.months_applied }}개월, 고정비 비중 {{ "%.0f" | format(r.stress_assumptions.fixed_cost_share * 100) }}%.</p>
+{{ claims(r.stress_section.commentary) }}
+
+<h2>8. 추가 확인이 필요한 자료</h2>
+{% if r.additional_documents %}
+<table>
+<tr><th width="32%">자료</th><th>사유</th><th width="8%">출처</th></tr>
+{% for d in r.additional_documents %}<tr><td>{{ d.item }}</td><td>{{ d.reason }}{% if d.status != "VERIFIED" %} <span class="muted">[{{ status_label[d.status] }}]</span>{% endif %}</td><td>{{ "규칙" if d.source == "RULE" else "AI" }}</td></tr>{% endfor %}
+</table>
+{% else %}<p class="muted">해당 내용 없음</p>{% endif %}
+
+<h2>9. 종합적인 심사 검토 의견</h2>
+{{ claims(r.overall_opinion) }}
+<p class="muted">본 의견은 검토 참고 의견이며 대출 승인·거절 결정이 아닙니다.</p>
+
+<h2>10. 근거 데이터 및 사용한 규칙 버전</h2>
+<table>
+<tr><th width="18%">앱 버전</th><td width="32%">{{ p.app_version }}</td><th width="18%">위험 규칙 버전</th><td>{{ p.rule_version }}</td></tr>
+<tr><th>시나리오 버전</th><td>{{ p.stress_version }}</td><th>프롬프트 버전</th><td>{{ p.prompt_version }}</td></tr>
+<tr><th>해석 생성 방식</th><td>{{ "AI (" ~ p.ai_model ~ ")" if p.ai_mode == "LLM" else "규칙 기반 문장" }}</td><th>AI 오류</th><td>{{ p.ai_error or "-" }}</td></tr>
+<tr><th>문장 검증 결과</th><td colspan="3">{% for k, v in p.claim_counts.items() %}{{ status_label.get(k, k) }} {{ v }}건{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
+<tr><th>입력 파일 SHA-256</th><td colspan="3" class="muted">{{ p.input_hash }}</td></tr>
+{% for k, v in p.config_hashes.items() %}<tr><th>설정 {{ k }}</th><td colspan="3" class="muted">{{ v }}</td></tr>{% endfor %}
+</table>
+<p class="muted">근거 항목 {{ p.evidence_ids | length }}개가 이 보고서의 해석에 사용되었습니다.</p>
+
+<div id="pagefooter" class="muted">{% if font_path %}CIF 여신심사 검토 보고서 (참고용) · {{ r.overview.company_name }} · <pdf:pagenumber>{% endif %}</div>
+</body>
+</html>

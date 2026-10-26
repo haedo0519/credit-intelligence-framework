@@ -43,6 +43,8 @@ def test_hash_changes_when_rules_change(cfg_dir):
     ("account_map.yaml", lambda d: d["accounts"]["REVENUE"].append("영업이익")),       # 동의어 중복
     ("account_map.yaml", lambda d: d["required"].append("UNKNOWN_CODE")),             # 미정의 코드
     ("stress_scenarios.yaml", lambda d: d["assumptions"].update(floating_rate_share=1.5)),
+    ("stress_scenarios.yaml", lambda d: d["assumptions"].update(fixed_cost_share=-0.1)),
+    ("stress_scenarios.yaml", lambda d: d["assumptions"].pop("fixed_cost_share")),
     ("stress_scenarios.yaml", lambda d: d["scenarios"].pop("BASE")),
     ("stress_scenarios.yaml", lambda d: d["scenarios"]["BASE"].update(revenue_change_pct=-150)),
     ("settings.yaml", lambda d: d.update(scope_priority=["CFS", "CFS"])),

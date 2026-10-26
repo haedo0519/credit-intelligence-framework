@@ -69,6 +69,7 @@ class StressAssumptions(BaseModel):
     floating_rate_share: float = Field(ge=0, le=1)
     months_applied: int = Field(ge=0, le=12)
     borrowings_basis: str
+    fixed_cost_share: float = Field(ge=0, le=1)
 
 
 class Scenario(BaseModel):

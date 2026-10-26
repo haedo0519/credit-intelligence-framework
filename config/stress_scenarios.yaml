@@ -4,6 +4,9 @@ assumptions:
   floating_rate_share: 0.5      # 차입금 중 변동금리 비중 (0~1)
   months_applied: 12            # 금리 변화가 적용되는 개월 수 (연환산 = months/12)
   borrowings_basis: 기말 차입금 잔액이 연중 일정하다고 가정
+  # 영업비용(매출 − 영업이익) 중 매출과 무관한 고정비 비중 (0~1).
+  # 0이면 비용 전부 변동비(이익률 고정). 업종·기업별로 정해야 하는 가정이라 기본값은 0으로 둔다.
+  fixed_cost_share: 0.0
 scenarios:
   BASE:
     description: 기본 (변화 없음)

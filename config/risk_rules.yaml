@@ -1,0 +1,29 @@
+version: "1.0.0"
+# 업종 무관 일반 가정값. 위험 신호는 부도확률이 아니다.
+disclaimer: "위험 신호는 규칙 기반 점검 결과이며 부도확률이나 신용등급이 아닙니다."
+rules:
+  CAPITAL_IMPAIRMENT_FULL:
+    description: 완전자본잠식 (자본총계 ≤ 0)
+    severity: HIGH
+  CAPITAL_IMPAIRMENT_PARTIAL:
+    description: 부분자본잠식 (0 < 자본총계 < 자본금)
+    severity: MEDIUM
+  OPERATING_LOSS_PERSISTENT:
+    description: 영업손실 연속 발생
+    severity: HIGH
+    params: {consecutive_years: 2}
+  INTEREST_COVERAGE_WEAK:
+    description: 이자보상배율 1배 미만 또는 큰 폭 하락
+    severity: HIGH
+    params: {min_ratio: 1.0, max_drop: 2.0}
+  LIQUIDITY_DETERIORATION:
+    description: 유동비율 100% 미만 또는 전년 대비 큰 폭 하락
+    severity: MEDIUM
+    params: {min_current_ratio_pct: 100.0, max_drop_pctp: 20.0}
+  NEGATIVE_OPERATING_CASH_FLOW:
+    description: 영업활동현금흐름 적자 (연속 시 HIGH)
+    severity: MEDIUM
+    params: {escalate_after_years: 2}
+  DATA_INCONSISTENCY:
+    description: 재무자료 불일치 또는 필수 계정 누락
+    severity: MEDIUM

@@ -1,0 +1,12 @@
+version: "1.0.0"
+db_path: data/cif.db
+raw_dir: data/raw
+# 자산 = 부채 + 자본 검사 허용오차 (자산총계 대비 비율)
+balance_tolerance: 0.001
+# 한 분석 실행에는 한 범위만 사용. 앞에 있는 범위를 우선 선택
+scope_priority: [CFS, OFS]
+# 금액 단위 → 원 환산 배수
+units:
+  원: 1
+  천원: 1000
+  백만원: 1000000

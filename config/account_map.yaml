@@ -1,0 +1,40 @@
+version: "1.0.0"
+# 표준 계정코드 → 입력 파일에서 허용하는 계정명 (공백 제거 후 비교)
+accounts:
+  TOTAL_ASSETS: [자산총계, 총자산, 자산합계]
+  CURRENT_ASSETS: [유동자산, 유동자산합계]
+  INVENTORIES: [재고자산]
+  TOTAL_LIABILITIES: [부채총계, 총부채, 부채합계]
+  CURRENT_LIABILITIES: [유동부채, 유동부채합계]
+  TOTAL_EQUITY: [자본총계, 총자본, 자본합계]
+  PAID_IN_CAPITAL: [자본금]
+  REVENUE: [매출액, 영업수익, 수익(매출액)]
+  OPERATING_INCOME: [영업이익, 영업이익(손실), 영업손익]
+  NET_INCOME: [당기순이익, 당기순이익(손실), 당기순손익]
+  INTEREST_EXPENSE: [이자비용]
+  OPERATING_CASH_FLOW: [영업활동현금흐름, 영업활동으로인한현금흐름]
+  BORROWINGS: [차입금, 총차입금]
+# 재무비율·위험 규칙에 쓰이는 계정 (누락 시 WARNING, 해당 비율은 MISSING_INPUT)
+required:
+  - TOTAL_ASSETS
+  - CURRENT_ASSETS
+  - INVENTORIES
+  - TOTAL_LIABILITIES
+  - CURRENT_LIABILITIES
+  - TOTAL_EQUITY
+  - PAID_IN_CAPITAL
+  - REVENUE
+  - OPERATING_INCOME
+  - NET_INCOME
+  - INTEREST_EXPENSE
+  - OPERATING_CASH_FLOW
+# 음수가 비정상인 계정 (비용은 양수 입력 규칙)
+non_negative:
+  - TOTAL_ASSETS
+  - CURRENT_ASSETS
+  - INVENTORIES
+  - TOTAL_LIABILITIES
+  - CURRENT_LIABILITIES
+  - PAID_IN_CAPITAL
+  - INTEREST_EXPENSE
+  - BORROWINGS

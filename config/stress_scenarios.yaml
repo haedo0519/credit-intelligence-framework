@@ -1,0 +1,32 @@
+version: "1.0.0"
+# 적용 순서: 매출 변화 → 변화된 매출에 영업이익률 변화 → 이자비용 변화
+assumptions:
+  floating_rate_share: 0.5      # 차입금 중 변동금리 비중 (0~1)
+  months_applied: 12            # 금리 변화가 적용되는 개월 수 (연환산 = months/12)
+  borrowings_basis: 기말 차입금 잔액이 연중 일정하다고 가정
+scenarios:
+  BASE:
+    description: 기본 (변화 없음)
+    revenue_change_pct: 0.0
+    op_margin_change_pctp: 0.0
+    rate_change_bp: 0
+  REVENUE_DOWN_20:
+    description: 매출 20% 감소
+    revenue_change_pct: -20.0
+    op_margin_change_pctp: 0.0
+    rate_change_bp: 0
+  MARGIN_DOWN_3:
+    description: 영업이익률 3%p 하락
+    revenue_change_pct: 0.0
+    op_margin_change_pctp: -3.0
+    rate_change_bp: 0
+  RATE_UP_200:
+    description: 금리 200bp 상승
+    revenue_change_pct: 0.0
+    op_margin_change_pctp: 0.0
+    rate_change_bp: 200
+  COMBINED_SEVERE:
+    description: 복합 (매출 -20%, 이익률 -3%p, 금리 +200bp)
+    revenue_change_pct: -20.0
+    op_margin_change_pctp: -3.0
+    rate_change_bp: 200
